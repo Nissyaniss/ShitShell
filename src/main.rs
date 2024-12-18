@@ -1,12 +1,13 @@
 use std::{
 	io::{self, stdout, Write},
+	ops::Index,
 	process::Command,
 };
 
 use crossterm::{
 	event::{
 		Event,
-		KeyCode::{Backspace, Char, Enter},
+		KeyCode::{Backspace, Char, Down, Enter, Up},
 		KeyEvent, KeyEventKind, KeyModifiers,
 	},
 	terminal::{disable_raw_mode, enable_raw_mode},
@@ -73,6 +74,8 @@ fn handle_command(input: &str) -> i32 {
 fn print_events() -> io::Result<()> {
 	let prompt = String::from("> ");
 	let mut command = String::new();
+	let mut history = Vec::new();
+	let mut history_index = 0;
 	print_flush(&prompt);
 	loop {
 		let event = crossterm::event::read()?;
@@ -80,30 +83,42 @@ fn print_events() -> io::Result<()> {
 			Event::Key(event) if event.kind == KeyEventKind::Press => {
 				if event.code == Char('d') && event.modifiers == KeyModifiers::CONTROL {
 					break;
-				}
-				if event.code == Enter {
+				} else if event.code == Enter {
 					let result = handle_command(&command);
+					history.push(command);
 					command = String::new();
 					if result == 0 {
 						print_flush(&format!("\n\r{prompt}"));
 					} else {
 						print_flush(&format!("\r{prompt}"));
 					}
-				}
-				if event.code == Char('c') && event.modifiers == KeyModifiers::CONTROL {
+				} else if event.code == Char('c') && event.modifiers == KeyModifiers::CONTROL {
 					print_flush(&format!("\n\r{prompt}"));
-				}
-				if event.code == Backspace {
+				} else if event.code == Backspace {
 					if command.is_empty() {
 						print_flush(&format!("\r{prompt}"));
 					} else {
 						print_flush(&format!("\r{prompt}{command}\x08 \x08"));
 					}
 					command.pop();
-				}
-				if event.is_a_character() && event.modifiers == KeyModifiers::empty() {
+				} else if event.code == Char(' ') {
+					command.push(' ');
+					print_flush(&format!("\r{prompt}{command}"));
+				} else if event.is_a_character() && event.modifiers == KeyModifiers::empty() {
 					command.push(event.get_char().unwrap());
 					print_flush(&format!("{}", event.code));
+				} else if event.code == Up {
+					history_index += 1;
+					if history.len() < history_index {
+						command = history.index(history.len() - history_index).to_string();
+						print_flush(&format!("\r{prompt}{command}"));
+					}
+				} else if event.code == Down {
+					history_index -= 1;
+					if history.len() > history_index {
+						command = history.index(history.len() - history_index).to_string();
+						print_flush(&format!("\r{prompt}{command}"));
+					}
 				}
 			}
 			_ => {}
