@@ -10,7 +10,7 @@ use crossterm::{
 		KeyCode::{Backspace, Char, Down, Enter, Up},
 		KeyEvent, KeyEventKind, KeyModifiers,
 	},
-	terminal::{disable_raw_mode, enable_raw_mode, size},
+	terminal::{disable_raw_mode, enable_raw_mode},
 };
 
 trait CharacterUtils {
