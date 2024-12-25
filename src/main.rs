@@ -11,7 +11,7 @@ use crossterm::{
 		KeyCode::{Backspace, Char, Down, Enter, Up},
 		KeyEvent, KeyEventKind, KeyModifiers,
 	},
-	terminal::{disable_raw_mode, enable_raw_mode},
+	terminal::{disable_raw_mode, enable_raw_mode, size},
 };
 
 trait CharacterUtils {
@@ -43,7 +43,7 @@ impl CharacterUtils for KeyEvent {
 fn main() -> io::Result<()> {
 	enable_raw_mode()?;
 	if let Err(e) = print_events() {
-		println!("Error: {e:?}\r");
+		print!("\nError: {e:?}\r");
 	}
 	disable_raw_mode()?;
 	Ok(())
@@ -54,41 +54,34 @@ fn print_flush(string: &str) {
 	let _ = stdout().flush();
 }
 
-fn clear_prompt() {
-	print!("{}", " ".repeat(15)); //BAD BUT DONT KNOW FOR NOW SO TODO
-	let _ = stdout().flush();
+fn clear_line(len: usize) {
+	print_flush(&format!("\r{}", &" ".repeat(len)));
 }
 
 #[allow(clippy::option_if_let_else)]
-fn handle_command(input: &str) -> i32 {
+fn handle_command(input: &str) -> io::Result<i32> {
 	let mut input = input.split_whitespace();
 	let command_string = match input.next() {
 		Some(string) => string.trim(),
-		None => return 0,
+		None => return Ok(0),
 	};
 	let args = input;
+	disable_raw_mode().unwrap();
 	let command = Command::new(command_string).args(args.clone()).spawn();
 	if let Ok(mut command) = command {
 		print_flush("\r\n");
-		command.wait().unwrap().code().unwrap()
+		Ok(command.wait()?.code().unwrap_or(0))
 	} else {
 		print_flush(&format!("\r\n{command_string}: Not a command"));
-		0
+		Ok(0)
 	}
 }
 
 fn print_events() -> io::Result<()> {
-	let prompt = String::from("> ");
 	let mut command = String::new();
-	let history_data = fs::read_to_string("shitshell_history").unwrap_or_else(|_| {
-		let _ = File::create("./shitshell_history"); //Bad
-		String::new()
-	});
-	let mut history: Vec<String> = history_data
-		.split('\n')
-		.map(std::string::ToString::to_string)
-		.collect();
-	let mut history_index: usize = history.len() - 1;
+	let mut history = Vec::new();
+	let mut history_index = 0;
+	let prompt = String::from("> ");
 	print_flush(&prompt);
 	loop {
 		let event = crossterm::event::read()?;
@@ -100,17 +93,15 @@ fn print_events() -> io::Result<()> {
 					break;
 				//Enter to validate
 				} else if event.code == Enter {
-					let result = handle_command(&command);
-					history.push(command);
-					history_index = history.len() - 1;
 					command = String::new();
 					if result == 0 {
 						print_flush(&format!("\n\r{prompt}"));
 					} else {
 						print_flush(&format!("\r{prompt}"));
 					}
-				//CTRL+c to cancel (not done)
+					history_index = 0;
 				} else if event.code == Char('c') && event.modifiers == KeyModifiers::CONTROL {
+					command = String::new();
 					print_flush(&format!("\n\r{prompt}"));
 				//Backspace
 				} else if event.code == Backspace {
@@ -128,22 +119,46 @@ fn print_events() -> io::Result<()> {
 				} else if event.is_a_character() && event.modifiers == KeyModifiers::empty() {
 					command.push(event.get_char().unwrap());
 					print_flush(&format!("{}", event.code));
-				//History up
-				} else if event.code == Up {
-					history_index = history_index.saturating_sub(1);
-					if history.len() > history_index {
-						command = history.index(history_index).to_string();
-						clear_prompt();
-						print_flush(&format!("\r{prompt}{command}"));
-					}
-				//History Down
-				} else if event.code == Down {
+				} else if event.code == Up && history.len() > history_index && !history.is_empty() {
 					history_index += 1;
-					if history_index < history.len() {
-						command = history.index(history_index).to_string();
-						clear_prompt();
-						print_flush(&format!("\r{prompt}{command}"));
+					command = history
+						.index(history.len().saturating_sub(history_index))
+						.to_string();
+					if history_index > 1 {
+						clear_line(
+							history
+								.index(history.len().saturating_sub(history_index - 1))
+								.len() + prompt.len() + 1,
+						);
 					}
+					print_flush(&format!("\r{prompt}{command}"));
+				} else if event.code == Down
+					&& history_index.saturating_sub(1) > 0
+					&& history.len() > history_index - 1
+					&& !history.is_empty()
+				{
+					history_index -= 1;
+					command = history
+						.index(history.len().saturating_sub(history_index))
+						.to_string();
+					if history.len() > history_index {
+						clear_line(
+							history
+								.index(history.len().saturating_sub(history_index + 1))
+								.len() + prompt.len() + 1,
+						);
+					}
+					print_flush(&format!("\r{prompt}{command}"));
+				} else if event.code == Down && history_index.saturating_sub(1) == 0 {
+					command = String::new();
+					if history.len() > history_index {
+						clear_line(
+							history
+								.index(history.len().saturating_sub(history_index + 1))
+								.len() + prompt.len() + 2,
+						);
+					}
+					print_flush(&format!("\r{prompt}{command}"));
 				}
 			}
 			_ => {}
