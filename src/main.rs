@@ -1,5 +1,4 @@
 use std::{
-	fs::{self, File},
 	io::{self, stdout, Write},
 	ops::Index,
 	process::Command,
@@ -87,12 +86,14 @@ fn print_events() -> io::Result<()> {
 		let event = crossterm::event::read()?;
 		match event {
 			Event::Key(event) if event.kind == KeyEventKind::Press => {
-				//Bad code but will do for now
-				//CTRL+d to quit
 				if event.code == Char('d') && event.modifiers == KeyModifiers::CONTROL {
 					break;
-				//Enter to validate
 				} else if event.code == Enter {
+					let result = handle_command(&command)?;
+					enable_raw_mode()?;
+					if !command.is_empty() {
+						history.push(command);
+					}
 					command = String::new();
 					if result == 0 {
 						print_flush(&format!("\n\r{prompt}"));
@@ -103,7 +104,6 @@ fn print_events() -> io::Result<()> {
 				} else if event.code == Char('c') && event.modifiers == KeyModifiers::CONTROL {
 					command = String::new();
 					print_flush(&format!("\n\r{prompt}"));
-				//Backspace
 				} else if event.code == Backspace {
 					if command.is_empty() {
 						print_flush(&format!("\r{prompt}"));
@@ -111,11 +111,9 @@ fn print_events() -> io::Result<()> {
 						print_flush(&format!("\r{prompt}{command}\x08 \x08"));
 					}
 					command.pop();
-				//Space
 				} else if event.code == Char(' ') {
 					command.push(' ');
 					print_flush(&format!("\r{prompt}{command}"));
-				//Characters
 				} else if event.is_a_character() && event.modifiers == KeyModifiers::empty() {
 					command.push(event.get_char().unwrap());
 					print_flush(&format!("{}", event.code));
