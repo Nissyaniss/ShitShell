@@ -1,9 +1,12 @@
-use std::{
-	io::{self, stdout, Write},
-	ops::Index,
-	process::Command,
-};
+mod command;
+mod displaymode;
+mod history;
+mod prompt;
+mod utils;
 
+use std::{io, ops::Index};
+
+use command::Command;
 use crossterm::{
 	event::{
 		Event,
@@ -12,13 +15,12 @@ use crossterm::{
 	},
 	terminal::{disable_raw_mode, enable_raw_mode},
 };
+use displaymode::Mode;
+use history::History;
+use prompt::Prompt;
+use utils::{print_flush, Characters};
 
-trait CharacterUtils {
-	fn is_a_character(&self) -> bool;
-	fn get_char(&self) -> Option<char>;
-}
-
-impl CharacterUtils for KeyEvent {
+impl Characters for KeyEvent {
 	fn is_a_character(&self) -> bool {
 		for char in "qwertyuiopasdfghjklzxcvbnm,./;'[]1234567890-=!@#$%^&*()_+{}:?\"<>?`~"
 			.to_string()
@@ -48,40 +50,18 @@ fn main() -> io::Result<()> {
 	Ok(())
 }
 
-fn print_flush(string: &str) {
-	print!("{string}");
-	let _ = stdout().flush();
-}
-
 fn clear_line(len: usize) {
 	print_flush(&format!("\r{}", &" ".repeat(len)));
 }
 
-#[allow(clippy::option_if_let_else)]
-fn handle_command(input: &str) -> io::Result<i32> {
-	let mut input = input.split_whitespace();
-	let command_string = match input.next() {
-		Some(string) => string.trim(),
-		None => return Ok(0),
-	};
-	let args = input;
-	disable_raw_mode().unwrap();
-	let command = Command::new(command_string).args(args.clone()).spawn();
-	if let Ok(mut command) = command {
-		print_flush("\r\n");
-		Ok(command.wait()?.code().unwrap_or(0))
-	} else {
-		print_flush(&format!("\r\n{command_string}: Not a command"));
-		Ok(0)
-	}
-}
-
 fn print_events() -> io::Result<()> {
-	let mut command = String::new();
-	let mut history = Vec::new();
-	let mut history_index = 0;
-	let prompt = String::from("> ");
-	print_flush(&prompt);
+	let mut current_command = Command::default();
+	let mut history = History {
+		items: Vec::new(),
+		current_index: 0,
+	};
+	let prompt = Prompt::default();
+	prompt.display(Mode::Normal, None);
 	loop {
 		let event = crossterm::event::read()?;
 		match event {
@@ -89,74 +69,97 @@ fn print_events() -> io::Result<()> {
 				if event.code == Char('d') && event.modifiers == KeyModifiers::CONTROL {
 					break;
 				} else if event.code == Enter {
-					let result = handle_command(&command)?;
+					current_command.handle_command()?;
 					enable_raw_mode()?;
-					if !command.is_empty() {
-						history.push(command);
+					if !current_command.is_empty() {
+						history.push(current_command);
 					}
-					command = String::new();
-					if result == 0 {
-						print_flush(&format!("\n\r{prompt}"));
-					} else {
-						print_flush(&format!("\r{prompt}"));
-					}
-					history_index = 0;
+					current_command = Command::default();
+					prompt.display(Mode::CarriageReturn, None);
+					history.current_index = 0;
 				} else if event.code == Char('c') && event.modifiers == KeyModifiers::CONTROL {
-					command = String::new();
-					print_flush(&format!("\n\r{prompt}"));
+					current_command = Command::default();
+					prompt.display(Mode::NewLineAndCarriageReturn, None);
 				} else if event.code == Backspace {
-					if command.is_empty() {
-						print_flush(&format!("\r{prompt}"));
+					if current_command.is_empty() {
+						prompt.display(Mode::CarriageReturn, None);
 					} else {
-						print_flush(&format!("\r{prompt}{command}\x08 \x08"));
+						prompt.display(Mode::Backspace, Some(current_command.to_string()));
 					}
-					command.pop();
+					current_command.pop();
 				} else if event.code == Char(' ') {
-					command.push(' ');
-					print_flush(&format!("\r{prompt}{command}"));
+					current_command.push(' ');
+					prompt.display(Mode::DisplayCommand, Some(current_command.to_string()));
 				} else if event.is_a_character() && event.modifiers == KeyModifiers::empty() {
-					command.push(event.get_char().unwrap());
+					current_command.push(event.get_char().unwrap());
 					print_flush(&format!("{}", event.code));
-				} else if event.code == Up && history.len() > history_index && !history.is_empty() {
-					history_index += 1;
-					command = history
-						.index(history.len().saturating_sub(history_index))
-						.to_string();
-					if history_index > 1 {
-						clear_line(
-							history
-								.index(history.len().saturating_sub(history_index - 1))
-								.len() + prompt.len() + 1,
-						);
-					}
-					print_flush(&format!("\r{prompt}{command}"));
-				} else if event.code == Down
-					&& history_index.saturating_sub(1) > 0
-					&& history.len() > history_index - 1
-					&& !history.is_empty()
+				} else if event.code == Up
+					&& history.items.len() > history.current_index
+					&& !history.items.is_empty()
 				{
-					history_index -= 1;
-					command = history
-						.index(history.len().saturating_sub(history_index))
-						.to_string();
-					if history.len() > history_index {
+					history.current_index += 1;
+					current_command.set(
+						history
+							.items
+							.index(history.items.len().saturating_sub(history.current_index))
+							.to_string(),
+					);
+					if history.current_index > 1 {
 						clear_line(
 							history
-								.index(history.len().saturating_sub(history_index + 1))
+								.items
+								.index(
+									history
+										.items
+										.len()
+										.saturating_sub(history.current_index - 1),
+								)
 								.len() + prompt.len() + 1,
 						);
 					}
-					print_flush(&format!("\r{prompt}{command}"));
-				} else if event.code == Down && history_index.saturating_sub(1) == 0 {
-					command = String::new();
-					if history.len() > history_index {
+					prompt.display(Mode::DisplayCommand, Some(current_command.to_string()));
+				} else if event.code == Down
+					&& history.current_index.saturating_sub(1) > 0
+					&& history.items.len() > history.current_index - 1
+					&& !history.items.is_empty()
+				{
+					history.current_index -= 1;
+					current_command.set(
+						history
+							.items
+							.index(history.items.len().saturating_sub(history.current_index))
+							.to_string(),
+					);
+					if history.items.len() > history.current_index {
 						clear_line(
 							history
-								.index(history.len().saturating_sub(history_index + 1))
+								.items
+								.index(
+									history
+										.items
+										.len()
+										.saturating_sub(history.current_index + 1),
+								)
+								.len() + prompt.len() + 1,
+						);
+					}
+					prompt.display(Mode::DisplayCommand, Some(current_command.to_string()));
+				} else if event.code == Down && history.current_index.saturating_sub(1) == 0 {
+					current_command = Command::default();
+					if history.items.len() > history.current_index {
+						clear_line(
+							history
+								.items
+								.index(
+									history
+										.items
+										.len()
+										.saturating_sub(history.current_index + 1),
+								)
 								.len() + prompt.len() + 2,
 						);
 					}
-					print_flush(&format!("\r{prompt}{command}"));
+					prompt.display(Mode::DisplayCommand, Some(current_command.to_string()));
 				}
 			}
 			_ => {}
