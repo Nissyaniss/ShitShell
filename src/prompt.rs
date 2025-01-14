@@ -1,15 +1,17 @@
-use std::fmt::Display;
+use std::{fmt::Display, process::Command};
 
-use crate::{displaymode::Mode, shell::Shell, utils::print_flush};
+use crate::{displaymode::Mode, utils::print_flush};
 
 pub struct Prompt {
 	prompt: String,
+	current_path: String,
 }
 
 impl Default for Prompt {
 	fn default() -> Self {
 		Self {
-			prompt: String::from("> "),
+			current_path: String::new(),
+			prompt: { "~ > ".to_string() },
 		}
 	}
 }
@@ -21,7 +23,8 @@ impl Display for Prompt {
 }
 
 impl Prompt {
-	pub fn display(&self, mode: Mode, command: Option<String>) {
+	pub fn display(&mut self, mode: Mode, command: Option<String>) {
+		self.update_current_path();
 		match mode {
 			Mode::CarriageReturn => print_flush(&format!("\r{}", self.prompt)),
 			Mode::NewLineAndCarriageReturn => print_flush(&format!("\n\r{}", self.prompt)),
@@ -36,6 +39,15 @@ impl Prompt {
 				}
 			}
 			Mode::Normal => print_flush(&self.prompt),
+		}
+	}
+
+	pub fn update_current_path(&mut self) {
+		let command_output = Command::new("pwd").output();
+		if command_output.is_ok() {
+			self.current_path = String::from_utf8(command_output.unwrap().stdout).unwrap();
+			self.current_path.pop();
+			self.prompt = format!("{} > ", self.current_path);
 		}
 	}
 

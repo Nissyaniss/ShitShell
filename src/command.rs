@@ -1,6 +1,11 @@
-use std::{fmt::Display, io::Result, process::Command as ProcessCommand};
-
 use crossterm::terminal::disable_raw_mode;
+use std::{
+	env::{set_current_dir, set_var},
+	fmt::Display,
+	io::Result,
+	path::Path,
+	process::Command as ProcessCommand,
+};
 
 use crate::utils::print_flush;
 
@@ -22,16 +27,31 @@ impl Command {
 			None => return Ok(0),
 		};
 		let args = input;
+		let mut args_len: usize = 0;
+		let _ = args.clone().inspect(|_| {
+			args_len += 1;
+		});
 		disable_raw_mode().unwrap();
-		let command = ProcessCommand::new(command_string)
-			.args(args.clone())
-			.spawn();
-		if let Ok(mut command) = command {
-			print_flush("\r\n");
-			Ok(command.wait()?.code().unwrap_or(0))
-		} else {
-			print_flush(&format!("\r\n{command_string}: Not a command"));
+		if command_string == "cd" {
+			if args_len == 0 {
+				let yay = set_current_dir(Path::new("/home/nissya"));
+				if yay.is_err() {
+					print_flush(&format!("{}", yay.err().unwrap()));
+				}
+				print_flush("\r\n");
+			}
 			Ok(0)
+		} else {
+			let command = ProcessCommand::new(command_string)
+				.args(args.clone())
+				.spawn();
+			if let Ok(mut command) = command {
+				print_flush("\r\n");
+				Ok(command.wait()?.code().unwrap_or(0))
+			} else {
+				print_flush(&format!("\r\n{command_string}: Not a command\n"));
+				Ok(0)
+			}
 		}
 	}
 
