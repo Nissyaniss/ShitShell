@@ -33,7 +33,10 @@ pub fn cd(path: &str) -> ExitStatus {
 		res = set_current_dir(path_final);
 	}
 	if res.is_err() {
-		print_flush(&format!("{}", res.err().unwrap()));
+		print_flush(&format!(
+			"\nShitShell: cd: {path}: {}\n",
+			res.err().unwrap()
+		));
 		return ExitStatus::Failed(2);
 	}
 	print_flush("\r\n");
