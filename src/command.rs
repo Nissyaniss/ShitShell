@@ -1,13 +1,7 @@
 use crossterm::terminal::disable_raw_mode;
-use std::{
-	env::{set_current_dir, set_var},
-	fmt::Display,
-	io::Result,
-	path::Path,
-	process::Command as ProcessCommand,
-};
+use std::{fmt::Display, io::Result, process::Command as ProcessCommand};
 
-use crate::utils::print_flush;
+use crate::{builtin_commands::cd::cd, utils::print_flush};
 
 #[derive(Default)]
 pub struct Command {
@@ -21,24 +15,20 @@ impl Command {
 
 	#[allow(clippy::option_if_let_else)]
 	pub fn handle_command(&self) -> Result<i32> {
+		disable_raw_mode().unwrap();
 		let mut input = self.command_string.split_whitespace();
 		let command_string = match input.next() {
 			Some(string) => string.trim(),
 			None => return Ok(0),
 		};
-		let args = input;
-		let mut args_len: usize = 0;
-		let _ = args.clone().inspect(|_| {
-			args_len += 1;
-		});
-		disable_raw_mode().unwrap();
+		let args_len: usize = input.count();
+		let mut args = self.command_string.split_whitespace();
+		args.next();
 		if command_string == "cd" {
 			if args_len == 0 {
-				let yay = set_current_dir(Path::new("/home/nissya"));
-				if yay.is_err() {
-					print_flush(&format!("{}", yay.err().unwrap()));
-				}
-				print_flush("\r\n");
+				cd("");
+			} else {
+				cd(args.next().unwrap());
 			}
 			Ok(0)
 		} else {
