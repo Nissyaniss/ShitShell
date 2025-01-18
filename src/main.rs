@@ -1,22 +1,29 @@
 mod builtin_commands;
 mod command;
+mod cursor;
 mod displaymode;
 mod exitcode;
 mod history;
 mod prompt;
 mod utils;
 
-use std::{io, ops::Index};
+use std::{
+	io::{self},
+	ops::Index,
+};
 
 use command::Command;
 use crossterm::{
+	cursor::{position, RestorePosition, SavePosition},
 	event::{
 		Event,
-		KeyCode::{self, Backspace, Char, Down, Enter, Up},
+		KeyCode::{self, Backspace, Char, Down, Enter, Left, Right, Up},
 		KeyEvent, KeyEventKind, KeyModifiers,
 	},
 	terminal::{disable_raw_mode, enable_raw_mode},
+	ExecutableCommand,
 };
+use cursor::{Cursor, Position};
 use displaymode::Mode;
 use history::History;
 use prompt::Prompt;
@@ -43,6 +50,7 @@ fn handle_history(
 	history: &mut History,
 	current_command: &mut Command,
 	prompt: &mut Prompt,
+	cursor: &mut Cursor,
 ) {
 	if event.is_key(Up) && history.items.len() > history.current_index && !history.items.is_empty()
 	{
@@ -67,7 +75,11 @@ fn handle_history(
 					+ 1,
 			);
 		}
-		prompt.display(Mode::DisplayCommand, Some(current_command.to_string()));
+		prompt.display(
+			Mode::DisplayCommand,
+			Some(current_command.to_string()),
+			cursor,
+		);
 	} else if event.is_key(Down)
 		&& history.current_index.saturating_sub(1) > 0
 		&& history.items.len() > history.current_index - 1
@@ -94,7 +106,11 @@ fn handle_history(
 					+ 1,
 			);
 		}
-		prompt.display(Mode::DisplayCommand, Some(current_command.to_string()));
+		prompt.display(
+			Mode::DisplayCommand,
+			Some(current_command.to_string()),
+			cursor,
+		);
 	} else if event.is_key(Down) && history.current_index.saturating_sub(1) == 0 {
 		*current_command = Command::default();
 		if history.items.len() > history.current_index {
@@ -111,7 +127,11 @@ fn handle_history(
 					+ 3,
 			);
 		}
-		prompt.display(Mode::DisplayCommand, Some(current_command.to_string()));
+		prompt.display(
+			Mode::DisplayCommand,
+			Some(current_command.to_string()),
+			cursor,
+		);
 		history.current_index = 0;
 	}
 }
@@ -123,7 +143,12 @@ fn print_events() -> io::Result<()> {
 		current_index: 0,
 	};
 	let mut prompt = Prompt::default();
-	prompt.display(Mode::Normal, None);
+	print_flush(&prompt.to_string()); //Not ideal
+	let mut cursor = Cursor::new(Position {
+		row: position().unwrap().0,
+		line: position().unwrap().1,
+	});
+
 	loop {
 		let event = crossterm::event::read()?;
 		match event {
@@ -131,32 +156,65 @@ fn print_events() -> io::Result<()> {
 				if event.has_modifier(KeyModifiers::CONTROL).is_key(Char('d')) {
 					break;
 				} else if event.is_key(Enter) {
+					cursor.has_moved = false;
 					current_command.handle_command()?;
 					enable_raw_mode()?;
 					if !current_command.is_empty() {
 						history.push(current_command);
 					}
 					current_command = Command::default();
-					prompt.display(Mode::CarriageReturn, None);
+					prompt.display(Mode::CarriageReturn, None, &mut cursor);
 					history.current_index = 0;
 				} else if event.has_modifier(KeyModifiers::CONTROL).is_key(Char('c')) {
 					current_command = Command::default();
-					prompt.display(Mode::NewLineAndCarriageReturn, None);
+					prompt.display(Mode::NewLineAndCarriageReturn, None, &mut cursor);
 				} else if event.is_key(Backspace) {
 					if !current_command.is_empty() {
-						prompt.display(Mode::Backspace, Some(current_command.to_string()));
-						current_command.pop();
+						if current_command.len()
+							<= (cursor.position.row - cursor.initial_position.row).into()
+						{
+							current_command.pop();
+						} else {
+							current_command
+								.remove((cursor.position.row - cursor.initial_position.row).into());
+						}
+						prompt.display(
+							Mode::Backspace,
+							Some(current_command.to_string()),
+							&mut cursor,
+						);
 					}
 				} else if event.is_key(Space) {
 					current_command.push(' ');
-					prompt.display(Mode::DisplayCommand, Some(current_command.to_string()));
+					prompt.display(
+						Mode::DisplayCommand,
+						Some(current_command.to_string()),
+						&mut cursor,
+					);
 				} else if event.has_modifier(KeyModifiers::empty()).is_a_character()
 					|| event.has_modifier(KeyModifiers::SHIFT).is_a_character()
 				{
-					current_command.push(event.get_char().unwrap());
-					print_flush(&format!("{}", event.code));
+					current_command.insert(
+						event.get_char().unwrap(),
+						(cursor.position.row - cursor.initial_position.row).into(),
+					);
+					prompt.display(
+						Mode::DisplayCommand,
+						Some(current_command.to_string()),
+						&mut cursor,
+					);
 				} else if event.is_key(Up) || event.is_key(Down) {
-					handle_history(event, &mut history, &mut current_command, &mut prompt);
+					handle_history(
+						event,
+						&mut history,
+						&mut current_command,
+						&mut prompt,
+						&mut cursor,
+					);
+				} else if event.is_key(Left) {
+					cursor.move_left();
+				} else if event.is_key(Right) {
+					cursor.move_right();
 				}
 			}
 			_ => {}

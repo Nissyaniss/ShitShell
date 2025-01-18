@@ -49,16 +49,24 @@ impl Command {
 		self.command_string.is_empty()
 	}
 
-	pub fn pop(&mut self) {
-		self.command_string.pop();
+	pub fn pop(&mut self) -> Option<char> {
+		self.command_string.pop()
 	}
 
 	pub fn push(&mut self, char: char) {
 		self.command_string.push(char);
 	}
 
+	pub fn insert(&mut self, char: char, index: usize) {
+		self.command_string.insert(index, char);
+	}
+
 	pub fn set(&mut self, command: String) {
 		self.command_string = command;
+	}
+
+	pub fn remove(&mut self, index: usize) {
+		self.command_string.remove(index);
 	}
 }
 
