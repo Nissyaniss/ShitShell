@@ -42,7 +42,10 @@ fn main() -> io::Result<()> {
 }
 
 fn clear_line(len: usize) {
+	// Move this to prompt or utils
+	let _ = io::stdout().execute(SavePosition);
 	print_flush(&format!("\r{}", &" ".repeat(len)));
+	let _ = io::stdout().execute(RestorePosition);
 }
 
 fn handle_history(
@@ -75,11 +78,7 @@ fn handle_history(
 					+ 1,
 			);
 		}
-		prompt.display(
-			Mode::DisplayCommand,
-			Some(current_command.to_string()),
-			cursor,
-		);
+		prompt.display(Mode::Normal, Some(current_command.to_string()), cursor);
 	} else if event.is_key(Down)
 		&& history.current_index.saturating_sub(1) > 0
 		&& history.items.len() > history.current_index - 1
@@ -106,11 +105,7 @@ fn handle_history(
 					+ 1,
 			);
 		}
-		prompt.display(
-			Mode::DisplayCommand,
-			Some(current_command.to_string()),
-			cursor,
-		);
+		prompt.display(Mode::Normal, Some(current_command.to_string()), cursor);
 	} else if event.is_key(Down) && history.current_index.saturating_sub(1) == 0 {
 		*current_command = Command::default();
 		if history.items.len() > history.current_index {
@@ -127,11 +122,7 @@ fn handle_history(
 					+ 3,
 			);
 		}
-		prompt.display(
-			Mode::DisplayCommand,
-			Some(current_command.to_string()),
-			cursor,
-		);
+		prompt.display(Mode::Normal, Some(current_command.to_string()), cursor);
 		history.current_index = 0;
 	}
 }
@@ -170,6 +161,7 @@ fn print_events() -> io::Result<()> {
 					prompt.display(Mode::NewLineAndCarriageReturn, None, &mut cursor);
 				} else if event.is_key(Backspace) {
 					if !current_command.is_empty() {
+						clear_line(prompt.len() + current_command.len()); // Causes flickering but fixes backspace issues need to change in the future
 						if current_command.len()
 							<= (cursor.position.row - cursor.initial_position.row).into()
 						{
@@ -186,11 +178,7 @@ fn print_events() -> io::Result<()> {
 					}
 				} else if event.is_key(Space) {
 					current_command.push(' ');
-					prompt.display(
-						Mode::DisplayCommand,
-						Some(current_command.to_string()),
-						&mut cursor,
-					);
+					prompt.display(Mode::Normal, Some(current_command.to_string()), &mut cursor);
 				} else if event.has_modifier(KeyModifiers::empty()).is_a_character()
 					|| event.has_modifier(KeyModifiers::SHIFT).is_a_character()
 				{
@@ -198,11 +186,7 @@ fn print_events() -> io::Result<()> {
 						event.get_char().unwrap(),
 						(cursor.position.row - cursor.initial_position.row).into(),
 					);
-					prompt.display(
-						Mode::DisplayCommand,
-						Some(current_command.to_string()),
-						&mut cursor,
-					);
+					prompt.display(Mode::Normal, Some(current_command.to_string()), &mut cursor);
 				} else if event.is_key(Up) || event.is_key(Down) {
 					handle_history(
 						event,

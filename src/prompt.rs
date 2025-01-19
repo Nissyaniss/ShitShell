@@ -47,25 +47,17 @@ impl Prompt {
 		match mode {
 			Mode::CarriageReturn => print_flush(&format!("\r{}", self.prompt)),
 			Mode::NewLineAndCarriageReturn => print_flush(&format!("\n\r{}", self.prompt)),
-			Mode::DisplayCommand => {
+			Mode::Normal | Mode::Backspace => {
 				if command.is_some() {
 					print_flush(&format!("\r{}{}", self.prompt, command.unwrap()));
 				}
 			}
-			//WTF ???????????????????????
-			Mode::Backspace => {
-				if command.is_some() {
-					print_flush(&format!("\r{}{}\x08 \x08", self.prompt, command.unwrap()));
-				}
-			}
-			Mode::Normal => print_flush(&self.prompt),
 		}
 		if cursor.has_moved {
 			let _ = io::stdout().execute(RestorePosition);
-			if mode != Mode::Backspace {
-				cursor.move_right();
+			if mode == Mode::Backspace {
+				cursor.move_left();
 			}
-			cursor.has_moved = false;
 		} else {
 			cursor.update();
 		}
