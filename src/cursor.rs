@@ -2,7 +2,7 @@ use std::io;
 
 use crossterm::{
 	cursor::{position, MoveLeft, MoveRight},
-	terminal, ExecutableCommand,
+	ExecutableCommand,
 };
 
 #[allow(dead_code)]
@@ -35,8 +35,8 @@ impl Cursor {
 		}
 	}
 
-	pub fn move_right(&mut self) {
-		if self.position.row != terminal::size().unwrap().0 {
+	pub fn move_right(&mut self, bound: u16) {
+		if self.position.row <= bound.saturating_sub(1) {
 			self.position.row = self.position.row.saturating_add(1);
 			let _ = io::stdout().execute(MoveRight(1));
 			self.has_moved = true;

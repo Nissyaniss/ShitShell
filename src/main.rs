@@ -167,8 +167,9 @@ fn print_events() -> io::Result<()> {
 						{
 							current_command.pop();
 						} else {
-							current_command
-								.remove((cursor.position.row - cursor.initial_position.row).into());
+							current_command.remove(
+								(cursor.position.row - cursor.initial_position.row - 1).into(),
+							);
 						}
 						prompt.display(
 							Mode::Backspace,
@@ -198,7 +199,10 @@ fn print_events() -> io::Result<()> {
 				} else if event.is_key(Left) {
 					cursor.move_left();
 				} else if event.is_key(Right) {
-					cursor.move_right();
+					cursor.move_right(
+						TryFrom::<usize>::try_from(prompt.len() + current_command.len())
+							.unwrap_or(0),
+					);
 				}
 			}
 			_ => {}
