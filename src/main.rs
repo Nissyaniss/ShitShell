@@ -194,6 +194,12 @@ fn print_events() -> io::Result<()> {
 						event.get_char().unwrap(),
 						(cursor.position.row - cursor.initial_position.row).into(),
 					);
+					if prompt.len() + current_command.len() != cursor.position.row.into() {
+						cursor.move_right(
+							TryFrom::<usize>::try_from(prompt.len() + current_command.len())
+								.unwrap_or(0),
+						);
+					}
 					prompt.display(Mode::Normal, Some(current_command.to_string()), &mut cursor);
 				} else if event.is_key(Up) || event.is_key(Down) {
 					handle_history(
