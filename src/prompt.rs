@@ -59,7 +59,7 @@ impl Prompt {
 				cursor.move_left();
 			}
 		} else {
-			cursor.update();
+			cursor.update(false);
 		}
 	}
 

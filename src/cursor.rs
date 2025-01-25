@@ -1,7 +1,7 @@
 use std::io;
 
 use crossterm::{
-	cursor::{position, MoveLeft, MoveRight},
+	cursor::{position, MoveLeft, MoveRight, MoveTo},
 	ExecutableCommand,
 };
 
@@ -43,10 +43,19 @@ impl Cursor {
 		}
 	}
 
-	pub fn update(&mut self) {
+	pub fn update(&mut self, do_initial_update: bool) {
 		let cursor_position = position().unwrap();
 		self.position.row = cursor_position.0;
 		self.position.line = cursor_position.1;
 		self.has_moved = false;
+
+		if do_initial_update {
+			self.initial_position = self.position;
+		}
+	}
+
+	pub fn move_to(&mut self, position: Position) {
+		let _ = io::stdout().execute(MoveTo(position.row, position.line));
+		self.update(false);
 	}
 }

@@ -155,10 +155,17 @@ fn print_events() -> io::Result<()> {
 					}
 					current_command = Command::default();
 					prompt.display(Mode::CarriageReturn, None, &mut cursor);
+					cursor.update(true);
 					history.current_index = 0;
 				} else if event.has_modifier(KeyModifiers::CONTROL).is_key(Char('c')) {
 					current_command = Command::default();
 					prompt.display(Mode::NewLineAndCarriageReturn, None, &mut cursor);
+					cursor.has_moved = false;
+					cursor.move_to(Position {
+						row: TryFrom::<usize>::try_from(prompt.len() + current_command.len())
+							.unwrap_or(0),
+						line: position().unwrap_or_default().1 + 1,
+					});
 				} else if event.is_key(Backspace) {
 					if !current_command.is_empty() {
 						clear_line(prompt.len() + current_command.len()); // Causes flickering but fixes backspace issues need to change in the future
