@@ -184,14 +184,16 @@ fn print_events() -> io::Result<()> {
 							&mut cursor,
 						);
 					}
-				} else if event.is_key(Space) {
-					current_command.push(' ');
-					prompt.display(Mode::Normal, Some(current_command.to_string()), &mut cursor);
 				} else if event.has_modifier(KeyModifiers::empty()).is_a_character()
 					|| event.has_modifier(KeyModifiers::SHIFT).is_a_character()
+					|| event.is_key(Space)
 				{
 					current_command.insert(
-						event.get_char().unwrap(),
+						if event.is_key(Space) {
+							' '
+						} else {
+							event.get_char().unwrap()
+						},
 						(cursor.position.row - cursor.initial_position.row).into(),
 					);
 					if prompt.len() + current_command.len() != cursor.position.row.into() {
