@@ -1,4 +1,4 @@
-use std::{fmt::Display, io, process::Command};
+use std::{env, fmt::Display, io};
 
 use crossterm::{
 	cursor::{RestorePosition, SavePosition},
@@ -18,15 +18,18 @@ impl Default for Prompt {
 			current_path: String::new(),
 			prompt: {
 				// This whole block isn't really good but only solution i can came up with
-				let command_output = Command::new("pwd").output(); //TODO: Use the env instead
-				if command_output.is_ok() {
-					let mut current_path =
-						String::from_utf8(command_output.unwrap().stdout).unwrap();
-					current_path.pop();
-					format!("{current_path} > ")
-				} else {
-					"~ > ".to_string()
-				}
+				let command_output = env::var("PWD");
+				command_output.map_or_else(
+					|_| "PWD ERROR > ".to_string(),
+					|mut current_path| {
+						if let Ok(home) = env::var("HOME") {
+							if current_path.starts_with(&home) {
+								current_path = current_path.replace(&home, "~");
+							}
+						}
+						format!("{current_path} > ")
+					},
+				)
 			},
 		}
 	}
@@ -63,13 +66,20 @@ impl Prompt {
 		}
 	}
 
-	pub fn update_current_path(&mut self) {
-		let command_output = Command::new("pwd").output(); //TODO: Use the env instead
-		if command_output.is_ok() {
-			self.current_path = String::from_utf8(command_output.unwrap().stdout).unwrap();
-			self.current_path.pop();
-			self.prompt = format!("{} > ", self.current_path);
-		}
+	fn update_current_path(&mut self) {
+		let home_dir = env::var("PWD");
+		self.current_path = home_dir.map_or_else(
+			|_| "PWD ERROR > ".to_string(),
+			|mut current_path| {
+				if let Ok(home) = env::var("HOME") {
+					if current_path.starts_with(&home) {
+						current_path = current_path.replace(&home, "~");
+					}
+				}
+				current_path
+			},
+		);
+		self.prompt = format!("{} > ", self.current_path);
 	}
 
 	pub fn len(&self) -> usize {

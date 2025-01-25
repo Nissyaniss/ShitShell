@@ -1,7 +1,8 @@
 use std::{
-	env::{set_current_dir, var_os},
+	env::{set_current_dir, set_var, var_os},
 	io::Error,
 	path::Path,
+	process::Command,
 };
 
 use crate::{exitcode::ExitStatus, utils::print_flush};
@@ -38,6 +39,12 @@ pub fn cd(path: &str) -> ExitStatus {
 			res.err().unwrap()
 		));
 		return ExitStatus::Failed(2);
+	}
+	if let Ok(command_output) = Command::new("pwd").output() {
+		//Not a fan of using the command but don't know how to do it otherwise
+		let mut path = String::from_utf8(command_output.stdout).unwrap_or_else(|_| "/".to_string());
+		path.pop();
+		set_var("PWD", path);
 	}
 	print_flush("\r\n");
 	ExitStatus::Success(0)
