@@ -13,7 +13,6 @@ impl Command {
 		self.command_string.len()
 	}
 
-	#[allow(clippy::option_if_let_else)]
 	pub fn handle_command(&self) -> Result<i32> {
 		disable_raw_mode().unwrap();
 		let mut input = self.command_string.split_whitespace();
