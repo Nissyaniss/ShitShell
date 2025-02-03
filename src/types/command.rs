@@ -1,7 +1,7 @@
 use crossterm::terminal::disable_raw_mode;
 use std::{fmt::Display, io::Result, process::Command as ProcessCommand};
 
-use crate::{builtin_commands::cd::cd, utils::print_flush};
+use crate::{builtin_commands::cd::cd, types::utils::print_flush};
 
 #[derive(Default)]
 pub struct Command {
@@ -51,10 +51,6 @@ impl Command {
 
 	pub fn pop(&mut self) -> Option<char> {
 		self.command_string.pop()
-	}
-
-	pub fn push(&mut self, char: char) {
-		self.command_string.push(char);
 	}
 
 	pub fn insert(&mut self, char: char, index: usize) {

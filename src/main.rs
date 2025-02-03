@@ -1,18 +1,11 @@
 mod builtin_commands;
-mod command;
-mod cursor;
-mod displaymode;
-mod exitcode;
-mod history;
-mod prompt;
-mod utils;
+mod types;
 
 use std::{
 	io::{self},
 	ops::Index,
 };
 
-use command::Command;
 use crossterm::{
 	cursor::{position, RestorePosition, SavePosition},
 	event::{
@@ -23,18 +16,21 @@ use crossterm::{
 	terminal::{disable_raw_mode, enable_raw_mode},
 	ExecutableCommand,
 };
-use cursor::{Cursor, Position};
-use displaymode::Mode;
-use history::History;
-use prompt::Prompt;
-use utils::{print_flush, KeyEventUtilities, OptionKeyEventUtilities};
+use types::{
+	command::Command,
+	cursor::{Cursor, Position},
+	displaymode::Mode,
+	history::History,
+	prompt::Prompt,
+	utils::{print_flush, KeyEventUtilities, OptionKeyEventUtilities},
+};
 
 #[allow(non_upper_case_globals)]
 const Space: KeyCode = Char(' ');
 
 fn main() -> io::Result<()> {
 	enable_raw_mode()?;
-	if let Err(e) = print_events() {
+	if let Err(e) = shell() {
 		print!("\nError: {e:?}\r");
 	}
 	disable_raw_mode()?;
@@ -127,7 +123,7 @@ fn handle_history(
 	}
 }
 
-fn print_events() -> io::Result<()> {
+fn shell() -> io::Result<()> {
 	let mut current_command = Command::default();
 	let mut history = History {
 		items: Vec::new(),

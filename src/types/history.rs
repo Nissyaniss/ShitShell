@@ -1,4 +1,4 @@
-use crate::command::Command;
+use crate::types::command::Command;
 
 pub struct History {
 	pub items: Vec<Command>,

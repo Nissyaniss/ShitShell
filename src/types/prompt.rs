@@ -5,7 +5,7 @@ use crossterm::{
 	ExecutableCommand,
 };
 
-use crate::{cursor::Cursor, displaymode::Mode, utils::print_flush};
+use crate::{types::cursor::Cursor, types::displaymode::Mode, types::utils::print_flush};
 
 pub struct Prompt {
 	prompt: String,

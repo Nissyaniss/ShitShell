@@ -1,38 +1,27 @@
 use std::{
 	env::{set_current_dir, set_var, var_os},
-	io::Error,
 	path::Path,
-	process::Command,
 };
 
-use crate::{exitcode::ExitStatus, utils::print_flush};
+use crate::{types::exitcode::ExitStatus, types::utils::print_flush};
 
 pub fn cd(path: &str) -> ExitStatus {
-	let Some(home_dir_string) = var_os("HOME") else {
+	let Some(home_dir_osstring) = var_os("HOME") else {
 		return ExitStatus::Failed(1);
 	};
-	let home_dir_path = Path::new(&home_dir_string);
-	let Some(pwd_string) = var_os("PWD") else {
+	let Some(home_dir) = home_dir_osstring.to_str() else {
 		return ExitStatus::Failed(1);
 	};
-	let pwd_path = Path::new(&pwd_string);
-	let res: Result<(), Error>;
-
-	if path.is_empty() {
-		res = set_current_dir(home_dir_path);
-	} else if path.starts_with('~') {
-		let path = path.replace('~', "");
-		let path_string = format!("{}{}", home_dir_path.to_str().unwrap(), path);
-		let path_final = Path::new(&path_string);
-		res = set_current_dir(path_final);
-	} else if path.starts_with('/') {
-		let path_final = Path::new(&path);
-		res = set_current_dir(path_final);
+	let absolute_path_string = &path.replace('~', home_dir);
+	let path_final = if path.is_empty() {
+		Path::new(home_dir)
 	} else {
-		let path_string = format!("{}/{}", pwd_path.to_str().unwrap(), path);
-		let path_final = Path::new(&path_string);
-		res = set_current_dir(path_final);
-	}
+		Path::new(absolute_path_string)
+	};
+	let Ok(absolute_path) = path_final.canonicalize() else {
+		return ExitStatus::Failed(1);
+	};
+	let res = set_current_dir(absolute_path.clone());
 	if res.is_err() {
 		print_flush(&format!(
 			"\nShitShell: cd: {path}: {}\n",
@@ -40,12 +29,7 @@ pub fn cd(path: &str) -> ExitStatus {
 		));
 		return ExitStatus::Failed(2);
 	}
-	if let Ok(command_output) = Command::new("pwd").output() {
-		//Not a fan of using the command but don't know how to do it otherwise
-		let mut path = String::from_utf8(command_output.stdout).unwrap_or_else(|_| "/".to_string());
-		path.pop();
-		set_var("PWD", path);
-	}
+	set_var("PWD", absolute_path.into_os_string());
 	print_flush("\r\n");
 	ExitStatus::Success(0)
 }
