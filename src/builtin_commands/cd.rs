@@ -13,12 +13,7 @@ pub fn cd(path: &str) -> ExitStatus {
 		return ExitStatus::Failed(1);
 	};
 	let absolute_path_string = &path.replace('~', home_dir);
-	let path_final = if path.is_empty() {
-		Path::new(home_dir)
-	} else {
-		Path::new(absolute_path_string)
-	};
-	let Ok(absolute_path) = path_final.canonicalize() else {
+	let Ok(absolute_path) = Path::new(absolute_path_string).canonicalize() else {
 		return ExitStatus::Failed(1);
 	};
 	let res = set_current_dir(absolute_path.clone());

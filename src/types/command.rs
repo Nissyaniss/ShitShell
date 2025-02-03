@@ -26,7 +26,7 @@ impl Command {
 		args.next();
 		if command_string == "cd" {
 			if args_len == 0 {
-				cd("");
+				cd("~");
 			} else {
 				cd(args.next().unwrap());
 			}
