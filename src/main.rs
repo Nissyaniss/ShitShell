@@ -1,27 +1,23 @@
 mod builtin_commands;
 mod types;
 
-use std::{
-	io::{self},
-	ops::Index,
-};
+use std::io::{self};
 
 use crossterm::{
-	cursor::{position, RestorePosition, SavePosition},
+	cursor::position,
 	event::{
 		Event,
 		KeyCode::{self, Backspace, Char, Down, Enter, Left, Right, Up},
-		KeyEvent, KeyEventKind, KeyModifiers,
+		KeyEventKind, KeyModifiers,
 	},
 	terminal::{disable_raw_mode, enable_raw_mode},
-	ExecutableCommand,
 };
 use types::{
 	command::Command,
 	cursor::{Cursor, Position},
 	displaymode::Mode,
 	history::History,
-	prompt::Prompt,
+	prompt::{clear_line, Prompt},
 	utils::{print_flush, KeyEventUtilities, OptionKeyEventUtilities},
 };
 
@@ -35,92 +31,6 @@ fn main() -> io::Result<()> {
 	}
 	disable_raw_mode()?;
 	Ok(())
-}
-
-fn clear_line(len: usize) {
-	// Move this to prompt or utils
-	let _ = io::stdout().execute(SavePosition);
-	print_flush(&format!("\r{}", &" ".repeat(len)));
-	let _ = io::stdout().execute(RestorePosition);
-}
-
-fn handle_history(
-	event: KeyEvent,
-	history: &mut History,
-	current_command: &mut Command,
-	prompt: &mut Prompt,
-	cursor: &mut Cursor,
-) {
-	if event.is_key(Up) && history.items.len() > history.current_index && !history.items.is_empty()
-	{
-		history.current_index += 1;
-		current_command.set(
-			history
-				.items
-				.index(history.items.len().saturating_sub(history.current_index))
-				.to_string(),
-		);
-		if history.current_index > 1 {
-			clear_line(
-				history
-					.items
-					.index(
-						history
-							.items
-							.len()
-							.saturating_sub(history.current_index - 1),
-					)
-					.len() + prompt.len()
-					+ 1,
-			);
-		}
-		prompt.display(Mode::Normal, Some(current_command.to_string()), cursor);
-	} else if event.is_key(Down)
-		&& history.current_index.saturating_sub(1) > 0
-		&& history.items.len() > history.current_index - 1
-		&& !history.items.is_empty()
-	{
-		history.current_index -= 1;
-		current_command.set(
-			history
-				.items
-				.index(history.items.len().saturating_sub(history.current_index))
-				.to_string(),
-		);
-		if history.items.len() > history.current_index {
-			clear_line(
-				history
-					.items
-					.index(
-						history
-							.items
-							.len()
-							.saturating_sub(history.current_index + 1),
-					)
-					.len() + prompt.len()
-					+ 1,
-			);
-		}
-		prompt.display(Mode::Normal, Some(current_command.to_string()), cursor);
-	} else if event.is_key(Down) && history.current_index.saturating_sub(1) == 0 {
-		*current_command = Command::default();
-		if history.items.len() > history.current_index {
-			clear_line(
-				history
-					.items
-					.index(
-						history
-							.items
-							.len()
-							.saturating_sub(history.current_index + 1),
-					)
-					.len() + prompt.len()
-					+ 3,
-			);
-		}
-		prompt.display(Mode::Normal, Some(current_command.to_string()), cursor);
-		history.current_index = 0;
-	}
 }
 
 fn shell() -> io::Result<()> {
@@ -169,7 +79,7 @@ fn shell() -> io::Result<()> {
 							<= (cursor.position.row - cursor.initial_position.row).into()
 						{
 							current_command.pop();
-						} else {
+						} else if cursor.position.row - cursor.initial_position.row != 0 {
 							current_command.remove(
 								(cursor.position.row - cursor.initial_position.row - 1).into(),
 							);
@@ -200,13 +110,7 @@ fn shell() -> io::Result<()> {
 					}
 					prompt.display(Mode::Normal, Some(current_command.to_string()), &mut cursor);
 				} else if event.is_key(Up) || event.is_key(Down) {
-					handle_history(
-						event,
-						&mut history,
-						&mut current_command,
-						&mut prompt,
-						&mut cursor,
-					);
+					history.handle_history(event, &mut current_command, &mut prompt, &mut cursor);
 				} else if event.is_key(Left) {
 					cursor.move_left();
 				} else if event.is_key(Right) {

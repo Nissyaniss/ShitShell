@@ -57,16 +57,3 @@ impl OptionKeyEventUtilities for Option<KeyEvent> {
 		false
 	}
 }
-
-// pub trait StringUtilities {
-// 	fn detect_env_vars(&self) -> Option<Vec<String>>;
-// }
-
-// impl StringUtilities for String {
-// 	fn detect_env_vars(&self) -> Option<Vec<String>> {
-// 		let mut res: Vec<String> = Vec::new();
-// 		let split = self.split_whitespace();
-// 		for words in spli 		}
-// 		Some(res)
-// 	}
-// }

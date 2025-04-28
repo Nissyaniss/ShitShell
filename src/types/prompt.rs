@@ -12,27 +12,34 @@ pub struct Prompt {
 	current_path: String,
 }
 
+pub fn clear_line(len: usize) {
+	let _ = io::stdout().execute(SavePosition);
+	print_flush(&format!("\r{}", &" ".repeat(len)));
+	let _ = io::stdout().execute(RestorePosition);
+}
+
 impl Default for Prompt {
 	fn default() -> Self {
 		Self {
 			current_path: String::new(),
-			prompt: {
-				// This whole block isn't really good but only solution i can came up with
-				let command_output = env::var("PWD");
-				command_output.map_or_else(
-					|_| "PWD ERROR > ".to_string(),
-					|mut current_path| {
-						if let Ok(home) = env::var("HOME") {
-							if current_path.starts_with(&home) {
-								current_path = current_path.replace(&home, "~");
-							}
-						}
-						format!("{current_path} > ")
-					},
-				)
-			},
+			prompt: { format!("{} > ", update_current_path()) },
 		}
 	}
+}
+
+fn update_current_path() -> String {
+	let home_dir = env::var("PWD");
+	home_dir.map_or_else(
+		|_| "PWD ERROR > ".to_string(),
+		|mut current_path| {
+			if let Ok(home) = env::var("HOME") {
+				if current_path.starts_with(&home) {
+					current_path = current_path.replace(&home, "~");
+				}
+			}
+			current_path
+		},
+	)
 }
 
 impl Display for Prompt {
@@ -67,18 +74,7 @@ impl Prompt {
 	}
 
 	fn update_current_path(&mut self) {
-		let home_dir = env::var("PWD");
-		self.current_path = home_dir.map_or_else(
-			|_| "PWD ERROR > ".to_string(),
-			|mut current_path| {
-				if let Ok(home) = env::var("HOME") {
-					if current_path.starts_with(&home) {
-						current_path = current_path.replace(&home, "~");
-					}
-				}
-				current_path
-			},
-		);
+		self.current_path = update_current_path();
 		self.prompt = format!("{} > ", self.current_path);
 	}
 
