@@ -1,7 +1,7 @@
 use crossterm::terminal::disable_raw_mode;
 use std::{fmt::Display, io::Result, process::Command as ProcessCommand};
 
-use crate::{builtin_commands::cd::cd, types::utils::print_flush};
+use crate::{builtin_commands::cd::cd, print_flush};
 
 #[derive(Default)]
 pub struct Command {
@@ -35,10 +35,10 @@ impl Command {
 				.args(args.clone())
 				.spawn();
 			if let Ok(mut command) = command {
-				print_flush("\r\n");
+				print_flush!("\r\n");
 				Ok(command.wait()?.code().unwrap_or(0))
 			} else {
-				print_flush(&format!("\r\n{command_string}: Not a command\n"));
+				print_flush!("\r\n{command_string}: Not a command\n");
 				Ok(0)
 			}
 		}

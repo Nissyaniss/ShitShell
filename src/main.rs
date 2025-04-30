@@ -18,7 +18,7 @@ use types::{
 	displaymode::Mode,
 	history::History,
 	prompt::{clear_line, Prompt},
-	utils::{print_flush, KeyEventUtilities, OptionKeyEventUtilities},
+	utils::{KeyEventUtilities, OptionKeyEventUtilities},
 };
 
 #[allow(non_upper_case_globals)]
@@ -40,7 +40,7 @@ fn shell() -> io::Result<()> {
 		current_index: 0,
 	};
 	let mut prompt = Prompt::default();
-	print_flush(&prompt.to_string()); //Not ideal
+	print_flush!("{}", &prompt.to_string()); //Not ideal
 	let mut cursor = Cursor::new(Position {
 		row: position().unwrap().0,
 		line: position().unwrap().1,

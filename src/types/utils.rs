@@ -1,11 +1,13 @@
-use std::io::{stdout, Write};
-
 use crossterm::event::KeyCode::{self, Char};
 use crossterm::event::{KeyEvent, KeyModifiers};
 
-pub fn print_flush(string: &str) {
-	print!("{string}");
-	let _ = stdout().flush();
+#[macro_export]
+macro_rules! print_flush {
+    ($($arg:tt)*) => {
+    	use std::io::Write;
+        print!($($arg)*);
+        std::io::stdout().flush().expect("Failed to flush stdout");
+    };
 }
 
 pub trait KeyEventUtilities {

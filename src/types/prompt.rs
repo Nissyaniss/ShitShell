@@ -5,7 +5,10 @@ use crossterm::{
 	ExecutableCommand,
 };
 
-use crate::{types::cursor::Cursor, types::displaymode::Mode, types::utils::print_flush};
+use crate::{
+	print_flush,
+	types::{cursor::Cursor, displaymode::Mode},
+};
 
 pub struct Prompt {
 	prompt: String,
@@ -14,7 +17,7 @@ pub struct Prompt {
 
 pub fn clear_line(len: usize) {
 	let _ = io::stdout().execute(SavePosition);
-	print_flush(&format!("\r{}", &" ".repeat(len)));
+	print_flush!("{}", &format!("\r{}", &" ".repeat(len)));
 	let _ = io::stdout().execute(RestorePosition);
 }
 
@@ -55,11 +58,15 @@ impl Prompt {
 		}
 		self.update_current_path();
 		match mode {
-			Mode::CarriageReturn => print_flush(&format!("\r{}", self.prompt)),
-			Mode::NewLineAndCarriageReturn => print_flush(&format!("\n\r{}", self.prompt)),
+			Mode::CarriageReturn => {
+				print_flush!("\r{}", self.prompt);
+			}
+			Mode::NewLineAndCarriageReturn => {
+				print_flush!("\n\r{}", self.prompt);
+			}
 			Mode::Normal | Mode::Backspace => {
 				if command.is_some() {
-					print_flush(&format!("\r{}{}", self.prompt, command.unwrap()));
+					print_flush!("\r{}{}", self.prompt, command.unwrap());
 				}
 			}
 		}

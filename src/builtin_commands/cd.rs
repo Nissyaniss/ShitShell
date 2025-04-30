@@ -3,7 +3,7 @@ use std::{
 	path::Path,
 };
 
-use crate::{types::exitcode::ExitStatus, types::utils::print_flush};
+use crate::{print_flush, types::exitcode::ExitStatus};
 
 pub fn cd(path: &str) -> ExitStatus {
 	let Some(home_dir_osstring) = var_os("HOME") else {
@@ -18,13 +18,10 @@ pub fn cd(path: &str) -> ExitStatus {
 	};
 	let res = set_current_dir(absolute_path.clone());
 	if res.is_err() {
-		print_flush(&format!(
-			"\nShitShell: cd: {path}: {}\n",
-			res.err().unwrap()
-		));
+		print_flush!("\nShitShell: cd: {path}: {}\n", res.err().unwrap());
 		return ExitStatus::Failed(2);
 	}
 	set_var("PWD", absolute_path.into_os_string());
-	print_flush("\r\n");
+	print_flush!("\r\n");
 	ExitStatus::Success(0)
 }
