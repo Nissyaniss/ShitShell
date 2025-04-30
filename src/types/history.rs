@@ -33,7 +33,7 @@ impl History {
 	) {
 		if event.is_key(Up) && self.items.len() > self.current_index && !self.items.is_empty() {
 			self.current_index += 1;
-			current_command.set(
+			current_command.set_command(
 				self.items
 					.index(self.items.len().saturating_sub(self.current_index))
 					.to_string(),
@@ -53,7 +53,7 @@ impl History {
 			&& !self.items.is_empty()
 		{
 			self.current_index -= 1;
-			current_command.set(
+			current_command.set_command(
 				self.items
 					.index(self.items.len().saturating_sub(self.current_index))
 					.to_string(),

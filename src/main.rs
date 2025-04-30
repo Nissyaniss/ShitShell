@@ -1,4 +1,5 @@
 mod builtin_commands;
+mod parser;
 mod types;
 
 use std::io::{self};
@@ -31,6 +32,9 @@ fn main() -> io::Result<()> {
 	}
 	disable_raw_mode()?;
 	Ok(())
+	// let res = parser::parse("ls -a -c &&& ls");
+	// println!("{res:#?}");
+	// Ok(())
 }
 
 fn shell() -> io::Result<()> {
@@ -54,7 +58,7 @@ fn shell() -> io::Result<()> {
 					break;
 				} else if event.is_key(Enter) {
 					cursor.has_moved = false;
-					current_command.handle_command()?;
+					Command::handle_commands(current_command.get_command())?;
 					enable_raw_mode()?;
 					if !current_command.is_empty() {
 						history.push(current_command);
