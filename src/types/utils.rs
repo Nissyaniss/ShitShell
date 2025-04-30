@@ -4,9 +4,8 @@ use crossterm::event::{KeyEvent, KeyModifiers};
 #[macro_export]
 macro_rules! print_flush {
     ($($arg:tt)*) => {
-    	use std::io::Write;
         print!($($arg)*);
-        std::io::stdout().flush().expect("Failed to flush stdout");
+        std::io::Write::flush(&mut std::io::stdout()).expect("Failed to flush stdout");
     };
 }
 

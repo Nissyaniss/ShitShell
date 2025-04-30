@@ -151,6 +151,7 @@ name = "shit_shell"
 version = "0.1.0"
 dependencies = [
  "crossterm",
+ "signal-hook",
 ]
 
 [[package]]

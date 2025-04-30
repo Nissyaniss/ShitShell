@@ -1,5 +1,13 @@
 use crossterm::terminal::disable_raw_mode;
-use std::{fmt::Display, io::Result, process::Command as ProcessCommand};
+use std::{
+	fmt::Display,
+	io::Result,
+	process::Command as ProcessCommand,
+	sync::{
+		atomic::{AtomicBool, Ordering},
+		Arc,
+	},
+};
 
 use crate::{builtin_commands::cd::cd, print_flush};
 
@@ -14,6 +22,11 @@ impl Command {
 	}
 
 	pub fn handle_command(&self) -> Result<i32> {
+		let running = Arc::new(AtomicBool::new(true));
+		let r = running.clone();
+
+		signal_hook::flag::register(signal_hook::consts::SIGINT, running)?;
+
 		disable_raw_mode().unwrap();
 		let mut input = self.command_string.split_whitespace();
 		let command_string = match input.next() {
@@ -34,13 +47,37 @@ impl Command {
 			let command = ProcessCommand::new(command_string)
 				.args(args.clone())
 				.spawn();
-			if let Ok(mut command) = command {
-				print_flush!("\r\n");
-				Ok(command.wait()?.code().unwrap_or(0))
-			} else {
-				print_flush!("\r\n{command_string}: Not a command\n");
-				Ok(0)
-			}
+			print_flush!("\n");
+			let mut res = 1;
+			command.map_or_else(
+				|_| {
+					print_flush!("\r\n{command_string}: Not a command\n");
+					Ok(0)
+				},
+				|mut command| {
+					while command.try_wait().unwrap().is_none() {
+						match command.try_wait() {
+							Ok(Some(status)) => {
+								res = status.code().unwrap();
+							}
+							Ok(None) => {
+								if !r.load(Ordering::Relaxed) {
+									let _ = command.kill();
+									let _ = command.wait();
+									r.store(true, Ordering::Relaxed);
+								}
+								std::thread::sleep(std::time::Duration::from_millis(100));
+								res = 1;
+							}
+							Err(e) => {
+								eprintln!("Error waiting for command: {e}");
+								res = 1;
+							}
+						}
+					}
+					Ok(res)
+				},
+			)
 		}
 	}
 
