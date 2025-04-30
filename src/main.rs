@@ -64,7 +64,7 @@ fn shell() -> io::Result<()> {
 						history.push(current_command);
 					}
 					current_command = Command::default();
-					prompt.display(Mode::CarriageReturn, None, &mut cursor);
+					prompt.display(Mode::NewLineAndCarriageReturn, None, &mut cursor);
 					cursor.update(true);
 					history.current_index = 0;
 				} else if event.has_modifier(KeyModifiers::CONTROL).is_key(Char('c')) {

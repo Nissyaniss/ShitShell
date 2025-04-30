@@ -42,7 +42,7 @@ fn exec_command(command: &Command, is_first_time: bool) -> Result<i32> {
 		}
 		command.map_or_else(
 			|_| {
-				print_flush!("\r\n{command_string}: Not a command\n");
+				print_flush!("\r{command_string}: Not a command\n");
 				Ok(0)
 			},
 			|mut command| {

@@ -58,9 +58,6 @@ impl Prompt {
 		}
 		self.update_current_path();
 		match mode {
-			Mode::CarriageReturn => {
-				print_flush!("\r{}", self.prompt);
-			}
 			Mode::NewLineAndCarriageReturn => {
 				print_flush!("\n\r{}", self.prompt);
 			}

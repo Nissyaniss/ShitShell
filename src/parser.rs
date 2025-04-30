@@ -10,7 +10,10 @@ pub fn parse(command: &str) -> Vec<Command> {
 		let mut spaces = commands.split(' ');
 		let buf = spaces.next().unwrap().to_owned();
 		if buf.is_empty() {
-			command.set_command(spaces.next().unwrap().to_owned());
+			match spaces.next() {
+				Some(command_string) => command.set_command(command_string.to_string()),
+				None => continue,
+			}
 		} else {
 			command.set_command(buf);
 		}
