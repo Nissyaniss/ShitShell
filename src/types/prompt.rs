@@ -66,6 +66,9 @@ impl Prompt {
 					print_flush!("\r{}{}", self.prompt, command.unwrap());
 				}
 			}
+			Mode::CarriageReturn => {
+				print_flush!("\r{}", self.prompt);
+			}
 		}
 		if cursor.has_moved {
 			let _ = io::stdout().execute(RestorePosition);
